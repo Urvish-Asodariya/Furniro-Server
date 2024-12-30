@@ -4,32 +4,24 @@ const { payment } = require("../../utils/payment");
 const NotificationController = require("./notification.control");
 const { status } = require("http-status");
 const User = require("../../models/user.model");
+const Sell = require("../../models/sells.model");
 
 exports.paybill = async (req, res) => {
     try {
         // const id = req.user._id;
-        const Id = req.params.Id;
-        // const order = await Order.find({
-        //     $and: [
-        //         { userId: userId },
-        //         { _id: Id }
-        //     ]
-        // });
-        const order = await Order.findById(Id);
-        // let total = 0;
-        // const totalamount = order.map((item) => {
-        //     total += item.total;
-        //     return total;
-        // });
+        const id = req.params.Id;
+        const order = await Order.findById(id);
         if (!order) {
-            return res.status(status.NOT_FOUND).json({
+            return res.status(status.BAD_REQUEST).json({
                 message: "Order not found"
             });
         }
-        const productname = order.productname;
-        const quantity = order.quantity;
-        // const bill = totalamount;
-        const total = order.total;
+        const products = [{
+            name: order.productname,
+            quantity: order.quantity,
+            amount: Math.round(order.total * 100),
+        }];
+        const totalAmount = products.reduce((sum, product) => sum + product.amount * product.quantity, 0);
         // const user = await User.findById(id);
         // if (!user) {
         //     return res.status(status.NOT_FOUND).json({
@@ -42,29 +34,33 @@ exports.paybill = async (req, res) => {
         //     });
         // }
         const { firstname, lastname, company, country, street_address, city, province, zipcode, phone, email, additional } = req.body;
-        const billing = new Billing({ firstname, lastname, company, country, street_address, city, province, zipcode, phone, email, additional, productname: productname, quantity: quantity, total: total, orderId: Id });
+        const billing = new Billing({
+            firstname, lastname, company, country, street_address, city, province, zipcode, phone, email, additional,
+            products, total: totalAmount / 100, userId: id, orderIds: [order._id],
+        });
         await billing.save();
-        const paymentResponse = await payment({ username: billing.firstname, email: billing.email, product: productname, quantity: quantity, amount: total });
+        await Promise.all(products.map(async (product) => {
+            const existingSell = await Sell.findOne({ name: product.name });
+            if (!existingSell) {
+                const newSell = new Sell({ name: product.name, quantity: product.quantity });
+                await newSell.save();
+            } else {
+                await Sell.findByIdAndUpdate(existingSell._id, { $inc: { quantity: product.quantity } }, { new: true, runValidators: true });
+            }
+        }));
+        const paymentResponse = await payment({ username: firstname, email, products, totalAmount, });
         if (paymentResponse.sessionId) {
             billing.paymentSessionId = paymentResponse.sessionId;
-            await Billing.findByIdAndUpdate(billing._id, { $set: { status: "completed" } }, { new: true, runValidators: true });
-            try {
-                await NotificationController.sendNotification({
-                    title: "Order Paid",
-                    message: "Your order has been paid successfully"
-                });
-            } catch (notifyErr) {
-                console.error("Notification sending failed:", notifyErr);
-            }
-
+            billing.status = "completed";
+            await billing.save();
             return res.status(status.OK).json({
-                message: "Payment session created successfully, and status updated.",
-                paymentResponse: paymentResponse
+                message: "Payment session created successfully",
+                sessionId: paymentResponse.sessionId,
             });
         } else {
             return res.status(status.BAD_REQUEST).json({
                 message: "Payment session creation failed",
-                paymentResponse: paymentResponse
+                paymentResponse,
             });
         }
     }

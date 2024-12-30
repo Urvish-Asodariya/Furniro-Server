@@ -12,7 +12,7 @@ exports.auth = (req, res, next) => {
 
     try {
         const verified = jwt.verify(token, process.env.SECRET_KEY);
-        req.user = verified.user;
+        req.user._id = verified.userId;
         req.admin = { _id: verified.id };
         next();
     } catch (err) {
@@ -24,7 +24,7 @@ exports.auth = (req, res, next) => {
 
 exports.isadmin = async (req, res, next) => {
     try {
-        const id = req.admin._id;
+        const id = req.admin;
         const admin = await User.findById(id);
         if (!admin || admin.role?.toLowerCase() !== "admin") {
             return res.status(status.UNAUTHORIZED).json({

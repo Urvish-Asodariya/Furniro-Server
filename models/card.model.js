@@ -16,7 +16,7 @@ const CardSchema = mongoose.Schema({
         type: Number
     },
     image: {
-        type: String
+        type: Array
     }
 });
 module.exports = mongoose.model("Card", CardSchema);

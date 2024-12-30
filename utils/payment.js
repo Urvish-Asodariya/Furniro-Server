@@ -1,13 +1,14 @@
 const stripe = require("stripe")(process.env.STRIPE_KEY);
-exports.payment = async ({ username, email, product, quantity, amount }) => {
+
+exports.payment = async ({ username, email, products, totalAmount }) => {
     try {
-        if (!username || !email || !product || !quantity || !amount) {
+        if (!username || !email || !products || !totalAmount) {
             return {
                 status: 400,
-                message: "All fields are required"
+                message: "All fields are required",
             };
         }
-        const existingCustomers = await stripe.customers.list({ email: email });
+        const existingCustomers = await stripe.customers.list({ email });
         let customer;
         if (existingCustomers.data.length > 0) {
             customer = existingCustomers.data[0];
@@ -26,23 +27,20 @@ exports.payment = async ({ username, email, product, quantity, amount }) => {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
             customer: customer.id,
-            line_items: [
-                {
-                    price_data: {
-                        currency: "inr",
-                        product_data: {
-                            name: product,
-                        },
-                        unit_amount: parseInt(amount) * 100,
+            line_items: products.map(product => ({
+                price_data: {
+                    currency: "inr",
+                    product_data: {
+                        name: product.name,
                     },
-                    quantity: parseInt(quantity),
+                    unit_amount: product.amount,
                 },
-            ],
+                quantity: product.quantity,
+            })),
             mode: "payment",
             success_url: process.env.SUCCESS_URL,
             cancel_url: process.env.CANCEL_URL,
         });
-
         return { sessionId: session.id };
     } catch (err) {
         return {

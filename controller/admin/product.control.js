@@ -9,47 +9,63 @@ const UserRating = require("../../models/userratings.model");
 const Relateditems = require("../../models/related_items.model");
 const { getFileUrl } = require("../../utils/cloudinaryConfig");
 const Category = require("../../models/category.model");
-const User = require("../../models/user.model");
 const { status } = require("http-status");
+const Billing = require("../../models/billing.model");
+const Sell = require("../../models/sells.model");
 
 exports.addProduct = async (req, res) => {
     try {
-        const id = req.params.id;
-        const card = await Card.findById(id);
-        if (!card) {
-            return res.status(status.NOT_FOUND).json({
-                message: "Card not found"
-            });
-        }
-        const { sku, category, sizes, colors, stock, ratings, details } = req.body;
-        const title = card.title;
-        const description = card.description;
-        const price = card.DiscountedPrice ? card.OriginalPrice : null;
+        const { title, description, discount, OriginalPrice, sizes, colors, sku, category, stock, details } = req.body;
         const publicIds = req.files.map(file => file.filename);
         const productImages = publicIds.slice(0, 5);
         const descriptionImages = publicIds.slice(5);
-        const categoryId = await Category.findOne({ name: category });
+        const singleimage = publicIds.slice(0, 1);
+        let parsedDiscount;
+        if (discount === "New") {
+            parsedDiscount = "New";
+        } else {
+            parsedDiscount = parseInt(discount);
+            if (isNaN(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
+                return res.status(status.BAD_REQUEST).json({
+                    message: "Discount must be 'New' or a number between 0 and 100"
+                });
+            }
+        }
+        let DiscountedPrice = parsedDiscount !== "New" ? (OriginalPrice - (OriginalPrice * parsedDiscount) / 100) : null;
+        const categoryDoc = await Category.findOne({ name: category });
+        if (!categoryDoc) {
+            return res.status(404).json({ message: "Category not found" });
+        }
+        const card = new Card({ title, description, discount: parsedDiscount, OriginalPrice, DiscountedPrice: DiscountedPrice, image: singleimage });
+        await card.save();
+        let price;
+        if (DiscountedPrice) {
+            price = DiscountedPrice;
+        } else {
+            price = OriginalPrice;
+        }
+        // const price = DiscountedPrice ? OriginalPrice : null;
         const product = new Product({
             title: title,
             price: price,
             description: description,
             sku,
             image: productImages,
-            cardId: id,
-            category: categoryId._id
+            cardId: card._id,
+            category: categoryDoc._id
         });
         await product.save();
         const productid = product._id;
         const stockmodel = new Stock({ stock: stock, ProductId: productid });
         await stockmodel.save();
-        const colorData = colors.map(color => color);
-        const colorModel = new Color({ code: colorData, ProductId: productid });
+        // const colorData = colors.map(color => color);
+        const colorModel = new Color({ code: colors, ProductId: productid });
         await colorModel.save();
-        const sizeData = sizes.map(size => size);
-        const sizeModel = new Size({ size: sizeData, ProductId: productid });
+        // const sizeData = sizes.map(size => size);
+        const sizeModel = new Size({ size: sizes, ProductId: productid });
         await sizeModel.save();
-        const ratingmodel = new Review({ ratings: ratings, ProductId: productid });
-        await ratingmodel.save();
+        // const ratingmodel = new Review({ ratings: ratings, ProductId: productid });
+        // await ratingmodel.save();
         const descriptionmodel = new Description({ details: details, desc_image: descriptionImages, ProductId: productid });
         await descriptionmodel.save();
         return res.status(status.OK).json({
@@ -57,6 +73,7 @@ exports.addProduct = async (req, res) => {
         });
     }
     catch (err) {
+        console.log(err);
         return res.status(status.INTERNAL_SERVER_ERROR).json({
             message: err.message
         });
@@ -110,14 +127,15 @@ exports.updateProduct = async (req, res) => {
 
 exports.allProduct = async (req, res) => {
     try {
-        var field = req.query.sort;
-        const products = await Product.aggregate([
+        var field = req.query.sort || "title";
+        const product = await Product.aggregate([
             {
                 $lookup: {
                     from: "sizes",
                     localField: "_id",
                     foreignField: "ProductId",
                     as: "sizeData"
+
                 }
             },
             {
@@ -169,6 +187,14 @@ exports.allProduct = async (req, res) => {
                 }
             },
             {
+                $lookup: {
+                    from: "sells",
+                    localField: "title",
+                    foreignField: "name",
+                    as: "sellData"
+                }
+            },
+            {
                 $addFields: {
                     size: { $arrayElemAt: ["$sizeData.size", 0] },
                     color: { $arrayElemAt: ["$colorData.code", 0] },
@@ -179,7 +205,8 @@ exports.allProduct = async (req, res) => {
                     username: { $arrayElemAt: ["$ratingData.username", 0] },
                     rating: { $arrayElemAt: ["$ratingData.rating", 0] },
                     Userreview: { $arrayElemAt: ["$ratingData.review", 0] },
-                    category: { $arrayElemAt: ["$categoryData.name", 0] }
+                    category: { $arrayElemAt: ["$categoryData.name", 0] },
+                    totalSell: { $arrayElemAt: ["$sellData.quantity", 0] } || 0
                 }
             },
             {
@@ -198,7 +225,8 @@ exports.allProduct = async (req, res) => {
                     desc_image: 1,
                     username: 1,
                     rating: 1,
-                    Userreview: 1
+                    Userreview: 1,
+                    totalSell: 1
                 }
             },
             {
@@ -207,18 +235,19 @@ exports.allProduct = async (req, res) => {
                 }
             }
         ]);
-
-        if (!products.length) {
-            return res.status(status.NOT_FOUND).json({
+        if (!product.length) {
+            return res.status(404).json({
                 message: "No products found"
             });
         }
-        return res.status(status.OK).json({
+
+        return res.status(200).json({
             message: "All products fetched successfully",
-            data: products
+            data: product,
+            total: product.length
         });
     } catch (err) {
-        return res.status(status.INTERNAL_SERVER_ERROR).json({
+        return res.status(500).json({
             message: err.message
         });
     }
@@ -233,7 +262,6 @@ exports.singleProduct = async (req, res) => {
                 message: "Card not found"
             });
         }
-
         const product = await Product.findOne({ cardId: card._id }).populate('category').lean();
         if (!product) {
             return res.status(status.NOT_FOUND).json({
@@ -248,6 +276,7 @@ exports.singleProduct = async (req, res) => {
         const stock = await Stock.findOne({ ProductId: product._id });
         const rating = await UserRating.find({ productId: product._id });
         const items = await Relateditems.find({ productId: product._id });
+        const sell = await Sell.findOne({ name: product.title });
         items.map((item) => {
             item.image = getFileUrl(item.image);
         });
@@ -274,7 +303,8 @@ exports.singleProduct = async (req, res) => {
                 stock: stock ? stock.stock : null,
                 DescriptionData,
                 RatingData,
-                items
+                items,
+                sell
             }
         });
     }
@@ -294,12 +324,14 @@ exports.deleteProduct = async (req, res) => {
                 message: "Product not found"
             });
         }
-        await Product.findByIdAndDelete(id);
+        const cardId = product.cardId;
+        await Card.findByIdAndDelete({ _id: cardId });
         await Stock.findOneAndDelete({ ProductId: product._id });
         await Color.findOneAndDelete({ ProductId: product._id });
         await Size.findOneAndDelete({ ProductId: product._id });
         await Review.findOneAndDelete({ ProductId: product._id });
         await Description.findOneAndDelete({ ProductId: product._id });
+        await Product.findByIdAndDelete(id);
         return res.status(status.OK).json({
             message: "Product deleted successfully"
         });

@@ -31,43 +31,43 @@ const BillingSchema = mongoose.Schema({
         type: String
     },
     email: {
-        type: String,
-        unique: true
+        type: String
     },
     additional: {
         type: String
     },
-    productname: {
-        type: String
-    },
-    quantity: {
-        type: Number
-    },
+    products: [
+        {
+            name: { type: String, required: true },
+            quantity: { type: Number, required: true },
+            amount: { type: Number, required: true },
+        },
+    ],
     total: {
-        type: Number
+        type: Number,
+        required: true
     },
     status: {
         type: String,
-        enum: ["pending", "cancled", "completed"],
-        default: "pending"
+        enum: ["pending", "canceled", "completed"],
+        default: "pending",
     },
-    paymentSessionId: { 
-        type: String 
+    paymentSessionId: {
+        type: String
     },
-    orderId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Order',
-        required: true
-    },
+    orderIds: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Order",
+            required: true,
+        },
+    ],
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        // required: true
+        ref: "User",
+        required: true,
     },
-    discountApplied: {   
-        type: Boolean,
-        default: false
-    }
+    discountApplied: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model("Billing", BillingSchema);

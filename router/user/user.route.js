@@ -4,7 +4,7 @@ const Usercontrol = require("../../controller/user/user.control");
 const { auth } = require("../../middleware/auth.middleware");
 const { validateUser } = require("../../validators/user.validation");
 
-router.post("/register", validateUser, Usercontrol.register);
+router.post("/register", Usercontrol.register);
 router.post("/login", Usercontrol.login);
 router.get("/forgetPass", auth, validateUser, Usercontrol.ForgetPass);
 router.post("/resetpass", Usercontrol.resetPass);

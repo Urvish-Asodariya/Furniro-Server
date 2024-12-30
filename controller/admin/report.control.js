@@ -40,14 +40,16 @@ exports.sales = async (req, res) => {
             }
         ]);
         const categoryProduct = results.map((item) => {
-            return `${item.name} = ${item.totalProducts}`;
+            const name = item.name
+            const totalProducts = item.totalProducts
+            return { name, totalProducts };
         })
         return res.status(status.OK).json({
             message: "Sales report fetched successfully",
             product: product,
             user: user,
             category: category,
-            revenue: revenue,
+            revenue:`Rs. ${revenue[0].total}`,
             categoryProduct: categoryProduct
         });
     }

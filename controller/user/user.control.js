@@ -14,8 +14,14 @@ exports.register = async (req, res) => {
                 message: "Invalid email format"
             });
         }
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(status.BAD_REQUEST).json({
+                message: "Email already in use"
+            });
+        }
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ name, mobile, email, address, zipcode, city, state, country, password: hashedPassword });
+        const user = new User({ name, mobile: mobile.toString(), email, address, zipcode: zipcode.toString(), city, state, country, password: hashedPassword });
         await user.save();
         return res.status(status.OK).json({
             message: "User created successfully"
@@ -48,7 +54,8 @@ exports.login = async (req, res) => {
                     message: "Invalid password"
                 });
             } else {
-                const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: "1h" });
+                const userId = user._id
+                const token = jwt.sign({ userId }, process.env.SECRET_KEY, { expiresIn: "1h" });
                 NotificationController.sendNotification({
                     userId: user._id,
                     title: "Login Success",
