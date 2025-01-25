@@ -5,6 +5,16 @@ const sellSchema = mongoose.Schema({
     },
     quantity: {
         type: Number
-    }
-});
+    },
+    revenue: {
+        type: Number
+    },
+    category: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category"
+    },
+},
+    {
+        timestamps: true
+    });
 module.exports = mongoose.model("Sell", sellSchema);

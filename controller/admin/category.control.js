@@ -6,9 +6,7 @@ const Stock = require("../../models/stock.model");
 const Review = require("../../models/review.model");
 const Description = require("../../models/description.model");
 const UserRating = require("../../models/userratings.model");
-const Relateditems = require("../../models/related_items.model");
 const Category = require("../../models/category.model");
-const User = require("../../models/user.model");
 const { status } = require("http-status");
 
 exports.add = async (req, res) => {
@@ -83,7 +81,7 @@ exports.delete = async (req, res) => {
             await Review.deleteMany({ ProductId: product._id });
             await Description.deleteMany({ ProductId: product._id });
             await UserRating.deleteMany({ ProductId: product._id });
-            await Relateditems.deleteMany({ ProductId: product._id });
+            await Card.findByIdAndDelete({ _id: product.cardId });
             await Product.findByIdAndDelete(product._id);
         }
         await Category.findByIdAndDelete(id);

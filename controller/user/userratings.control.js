@@ -106,10 +106,9 @@ exports.deleteratings = async (req, res) => {
     }
 };
 
-
 exports.allratings = async (req, res) => {
     try {
-        const data = await Rating.find();
+        const data = await Rating.find().populate("productId");
         if (data.length === 0) {
             return res.status(status.NOT_FOUND).json({
                 message: "No ratings found"

@@ -6,11 +6,9 @@ const Stock = require("../../models/stock.model");
 const Review = require("../../models/review.model");
 const Description = require("../../models/description.model");
 const UserRating = require("../../models/userratings.model");
-const Relateditems = require("../../models/related_items.model");
 const { getFileUrl } = require("../../utils/cloudinaryConfig");
 const Category = require("../../models/category.model");
 const { status } = require("http-status");
-const Billing = require("../../models/billing.model");
 const Sell = require("../../models/sells.model");
 
 exports.addProduct = async (req, res) => {
@@ -58,16 +56,34 @@ exports.addProduct = async (req, res) => {
         const productid = product._id;
         const stockmodel = new Stock({ stock: stock, ProductId: productid });
         await stockmodel.save();
-        // const colorData = colors.map(color => color);
-        const colorModel = new Color({ code: colors, ProductId: productid });
-        await colorModel.save();
-        // const sizeData = sizes.map(size => size);
-        const sizeModel = new Size({ size: sizes, ProductId: productid });
+        let sizeData;
+        if (Array.isArray(sizes)) {
+            sizeData = sizes;
+        } else if (typeof sizes === "string") {
+            try {
+                sizeData = JSON.parse(sizes);
+            } catch (error) {
+                sizeData = sizes.split(',').map(size => size.trim());
+            }
+        }
+        const sizeModel = new Size({ size: sizeData, ProductId: productid });
         await sizeModel.save();
+        let colorData;
+        if (Array.isArray(colors)) {
+            colorData = colors;
+        } else if (typeof colors === "string") {
+            try {
+                colorData = JSON.parse(colors);
+            } catch (error) {
+                colorData = colors.split(',').map(color => color.trim());
+            }
+        }
+        const colorModel = new Color({ code: colorData, ProductId: productid });
+        await colorModel.save();
         // const ratingmodel = new Review({ ratings: ratings, ProductId: productid });
         // await ratingmodel.save();
-        const descriptionmodel = new Description({ details: details, desc_image: descriptionImages, ProductId: productid });
-        await descriptionmodel.save();
+        const descriptionModel = new Description({ details, desc_image: descriptionImages, productId: productid });
+        await descriptionModel.save();
         return res.status(status.OK).json({
             message: "Product added successfully"
         });
@@ -83,42 +99,83 @@ exports.addProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const id = req.params.id;
-        if (!id) {
-            return res.status(status.BAD_REQUEST).json({
-                message: "Product id is required"
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({
+                message: "Product not found"
             });
-        } else {
-            const product = await Product.findById(id);
-            if (!product) {
-                return res.status(status.NOT_FOUND).json({
-                    message: "Product not found"
-                });
-            } else {
-                const updatedData = { ...req.body };
-                if (req.files) {
-                    updatedData.image = req.files.map((file) => file.path);
-                }
-                if (updatedData.sizes) {
-                    updatedData.sizes = updatedData.sizes.split(",").map((size) => size.trim());
-                }
-                if (updatedData.colors) {
-                    updatedData.colors = updatedData.colors.split(",").map((color) => color.trim());
-                }
-                if (updatedData.details) {
-                    updatedData.details = updatedData.details;
-                }
-                if (updatedData.category) {
-                    updatedData.category = updatedData.category;
-                }
-                const product = await Product.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
-                return res.status(status.OK).json({
-                    message: "Product updated successfully",
-                    data: product
-                });
-            }
         }
-    }
-    catch (err) {
+        const { title, description, discount, OriginalPrice, sizes, colors, sku, category, stock, details } = req.body;
+        const updatedData = {};
+        if (req.files && req.files.length > 0) {
+            const publicIds = req.files.map(file => file.filename);
+            updatedData.image = publicIds.slice(0, 5);
+            updatedData.singleimage = publicIds.slice(0, 1);
+            updatedData.desc_image = publicIds.slice(5);
+        }
+        let DiscountedPrice;
+        let parsedDiscount;
+        if (discount) {
+            if (discount === "New") {
+                parsedDiscount = "New";
+            } else {
+                parsedDiscount = parseInt(discount);
+                if (isNaN(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
+                    return res.status(400).json({
+                        message: "Discount must be 'New' or a number between 0 and 100"
+                    });
+                }
+            }
+            DiscountedPrice = parsedDiscount !== "New" ? (OriginalPrice - (OriginalPrice * parsedDiscount) / 100) : null;
+        }
+        await Card.findOneAndUpdate(
+            { _id: product.cardId }, {
+            title,
+            description,
+            discount: parsedDiscount,
+            OriginalPrice: OriginalPrice,
+            DiscountedPrice,
+            image: updatedData.singleimage || product.image
+        }, { new: true, runValidators: true });
+        const categoryDoc = await Category.findOne({ name: category });
+        if (!categoryDoc) {
+            return res.status(404).json({
+                message: "Category not found"
+            });
+        }
+        updatedData.title = title;
+        // if (DiscountedPrice) {
+        //     updatedData.price = DiscountedPrice;
+        // } else {
+        // }
+        updatedData.price = OriginalPrice;
+        updatedData.description = description;
+        updatedData.sku = sku;
+        updatedData.category = categoryDoc._id;
+        const updatedProduct = await Product.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
+        if (stock !== undefined) {
+            await Stock.findOneAndUpdate({ ProductId: id }, { stock }, { new: true, runValidators: true });
+        }
+        if (sizes) {
+            const sizeData = Array.isArray(sizes) ? sizes : sizes.split(',').map(size => size.trim());
+            await Size.findOneAndUpdate({ ProductId: id }, { size: sizeData }, { new: true, runValidators: true });
+        }
+        if (colors) {
+            const colorData = Array.isArray(colors) ? colors : colors.split(',').map(color => color.trim());
+            await Color.findOneAndUpdate({ ProductId: id }, { code: colorData }, { new: true, runValidators: true });
+        }
+        if (details || updatedData.desc_image) {
+            const descUpdate = {};
+            if (details) descUpdate.details = details;
+            if (updatedData.desc_image) descUpdate.desc_image = updatedData.desc_image;
+            await Description.findOneAndUpdate({ ProductId: id }, descUpdate, { new: true, runValidators: true });
+        }
+        return res.status(status.OK).json({
+            message: "Product updated successfully",
+            data: updatedProduct
+        });
+    } catch (err) {
+        console.error(err);
         return res.status(status.INTERNAL_SERVER_ERROR).json({
             message: err.message
         });
@@ -135,7 +192,6 @@ exports.allProduct = async (req, res) => {
                     localField: "_id",
                     foreignField: "ProductId",
                     as: "sizeData"
-
                 }
             },
             {
@@ -235,16 +291,20 @@ exports.allProduct = async (req, res) => {
                 }
             }
         ]);
+
         if (!product.length) {
             return res.status(404).json({
                 message: "No products found"
             });
         }
-
+        const updatedProducts = product.map(prod => {
+            const imagesWithUrl = prod.image && Array.isArray(prod.image) ? prod.image.map(img => getFileUrl(img)) : [];
+            return { ...prod, image: imagesWithUrl };
+        });
         return res.status(200).json({
             message: "All products fetched successfully",
-            data: product,
-            total: product.length
+            data: updatedProducts,
+            total: updatedProducts.length
         });
     } catch (err) {
         return res.status(500).json({
@@ -256,30 +316,26 @@ exports.allProduct = async (req, res) => {
 exports.singleProduct = async (req, res) => {
     try {
         const id = req.params.id;
-        const card = await Card.findById(id);
-        if (!card) {
-            return res.status(status.NOT_FOUND).json({
-                message: "Card not found"
-            });
-        }
-        const product = await Product.findOne({ cardId: card._id }).populate('category').lean();
+        const product = await Product.findById(id).populate('category').lean();
         if (!product) {
             return res.status(status.NOT_FOUND).json({
                 message: "Product not found"
             });
-        }
+        };
+        product.image = getFileUrl(product.image);
+        const card = await Card.findOne({ title: product.title });
+        const discount = card.discount;
+        const OriginalPrice = card.OriginalPrice;
         const size = await Size.find({ ProductId: product._id });
         const color = await Color.find({ ProductId: product._id });
         const review = await Review.findOne({ ProductId: product._id });
         const category = product.category.name;
         const description = await Description.find({ productId: product._id });
         const stock = await Stock.findOne({ ProductId: product._id });
-        const rating = await UserRating.find({ productId: product._id });
-        const items = await Relateditems.find({ productId: product._id });
-        const sell = await Sell.findOne({ name: product.title });
-        items.map((item) => {
-            item.image = getFileUrl(item.image);
-        });
+        // const items = await Relateditems.find({ productId: product._id });
+        // items.map((item) => {
+        //     item.image = getFileUrl(item.image);
+        // });
         const SizeData = size.map((item) => item.size);
         const ColorData = color.map((item) => item.code);
         const CategoryData = category ? category.name : null;
@@ -287,25 +343,22 @@ exports.singleProduct = async (req, res) => {
             details: item.details,
             images: item.desc_image
         }));
-        const RatingData = rating.map(item => ({
-            username: item.username,
-            rating: item.rating,
-            review: item.review
-        }));
+        DescriptionData.map((item) => {
+            item.images = item.images.map(img => getFileUrl(img));
+        });
         return res.status(status.OK).json({
             message: "Product found",
-            data: {
+            data: [{
                 product,
+                discount,
+                OriginalPrice,
                 SizeData,
                 ColorData,
                 Category: CategoryData,
                 review: review ? review.ratings : null,
                 stock: stock ? stock.stock : null,
                 DescriptionData,
-                RatingData,
-                items,
-                sell
-            }
+            }]
         });
     }
     catch (err) {
@@ -341,4 +394,3 @@ exports.deleteProduct = async (req, res) => {
         });
     }
 };
-

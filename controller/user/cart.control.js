@@ -18,6 +18,7 @@ exports.addcart = async (req, res) => {
         const price = parseInt(product.price);
         const size = req.body.size;
         const color = req.body.color;
+        const category = product.category;
         const quantity = parseInt(req.body.quantity) || 1;
         if (isNaN(quantity) || quantity <= 0) {
             return res.status(status.BAD_REQUEST).json({
@@ -32,6 +33,7 @@ exports.addcart = async (req, res) => {
             price: price,
             size: size,
             color: color,
+            category: category,
             quantity: quantity,
             productId: productId,
             subtotal: subtotal,
@@ -156,7 +158,6 @@ exports.totalamount = async (req, res) => {
         });
     }
 };
-
 
 exports.allcarts = async (req, res) => {
     try {

@@ -6,5 +6,8 @@ const ReportControl = require("../../controller/admin/report.control");
 router.get("/sales", ReportControl.sales);
 router.get("/inventory", ReportControl.inventory);
 router.get("/user-report", ReportControl.userreport);
+router.get("/productsell", ReportControl.productSells);
+router.get("/categorysell", ReportControl.categorySells);
+router.get("/last5month", ReportControl.last5monthrevenue);
 
 module.exports = router;

@@ -36,7 +36,7 @@ exports.login = async (req, res) => {
         }
         const admin = await Admin.findOne({ email });
         if (!admin) {
-            return res.status(status.UNAUTHORIZED).json({
+            return res.status(status.CONFLICT).json({
                 message: "Invalid email"
             });
         }
@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
             return res.status(status.OK).json({
                 message: "Admin logged in successfully",
                 token: token,
-                expiresIn: "1h"
+                role: admin.role
             });
         }
     }

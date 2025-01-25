@@ -1,12 +1,16 @@
 const Card = require("../../models/card.model");
 const { status } = require("http-status");
+const { getFileUrl } = require("../../utils/cloudinaryConfig");
 
 exports.allCard = async (req, res) => {
     try {
         const limit = 8;
         const page = parseInt(req.query.page) || 1;
         const skip = (page - 1) * limit;
-        const cards = await Card.find().skip(skip).limit(limit);
+        const cards = await Card.find().limit(limit).skip(skip);
+        cards.map((card) => {
+            card.image = getFileUrl(card.image);
+        });
         return res.status(status.OK).json({
             message: "All Cards retrieved successfully",
             data: cards
@@ -31,6 +35,9 @@ exports.allProductCard = async (req, res) => {
             { $skip: skip },
             { $limit: limit }
         ]);
+        cards.map((card) => {
+            card.image = getFileUrl(card.image);
+        });
         return res.status(status.OK).json({
             message: "All Cards retrieved successfully",
             data: cards,

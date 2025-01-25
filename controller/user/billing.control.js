@@ -20,6 +20,7 @@ exports.paybill = async (req, res) => {
             name: order.productname,
             quantity: order.quantity,
             amount: Math.round(order.total * 100),
+            category: order.category
         }];
         const totalAmount = products.reduce((sum, product) => sum + product.amount * product.quantity, 0);
         // const user = await User.findById(id);
@@ -42,7 +43,7 @@ exports.paybill = async (req, res) => {
         await Promise.all(products.map(async (product) => {
             const existingSell = await Sell.findOne({ name: product.name });
             if (!existingSell) {
-                const newSell = new Sell({ name: product.name, quantity: product.quantity });
+                const newSell = new Sell({ name: product.name, quantity: product.quantity, category: product.category });
                 await newSell.save();
             } else {
                 await Sell.findByIdAndUpdate(existingSell._id, { $inc: { quantity: product.quantity } }, { new: true, runValidators: true });

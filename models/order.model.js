@@ -16,25 +16,32 @@ const OrderSchema = mongoose.Schema({
         type: Number,
         min: [1, "Quantity must be at least 1"],
     },
+    category: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category"
+    },
     total: {
         type: Number
     },
-    status:{
-        type:String,
-        enum:["Pending","Shipped","Delivered"],
-        default:"Pending"
+    status: {
+        type: String,
+        enum: ["Pending", "Processing", "Delivered"],
+        default: "Pending"
     },
     orderdate: {
         type: Date,
         default: Date.now
-    }, 
-    userId: { 
+    },
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
     },
-    cartId: { 
+    cartId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Cart"
     }
+},
+{
+    timestamps: true
 });
 module.exports = mongoose.model("Order", OrderSchema);

@@ -53,6 +53,7 @@ exports.createorder = async (req, res) => {
         const image = cart.image;
         const price = parseInt(cart.price);
         const quantity = parseInt(cart.quantity);
+        const category = cart.category;
         if (quantity <= 0) {
             return res.status(status.BAD_REQUEST).json({
                 status: 400,
@@ -73,7 +74,9 @@ exports.createorder = async (req, res) => {
             image: image,
             price: price,
             quantity: quantity,
-            total: totalAmount
+            category: category,
+            total: totalAmount,
+            cartId: id
         });
         await order.save();
         const Id = stock._id;
@@ -126,12 +129,14 @@ exports.deleteorder = async (req, res) => {
                 message: "Order not found"
             });
         }
-        const stock = await Stock.findOne({ ProductId: order.productId });
-        if (!stock) {
+        console.log(order);
+        const cart = await Cart.findOne({ _id: order.cartId });
+        if (!cart) {
             return res.status(status.NOT_FOUND).json({
-                message: "Stock not found"
+                message: "Cart not found"
             });
         }
+        const stock = await Stock.findOne({ ProductId: cart.productId });
         await Stock.findByIdAndUpdate(stock._id, { $inc: { stock: order.quantity } });
         await Order.findByIdAndDelete(id);
         return res.status(status.OK).json({

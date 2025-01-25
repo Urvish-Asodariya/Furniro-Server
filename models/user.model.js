@@ -1,25 +1,28 @@
+const { number } = require("joi");
 const mongoose = require("mongoose");
 
 const UserSchema = mongoose.Schema(
   {
-    name: {
+    firstname: {
       type: String,
-      required: true, 
+    },
+    lastname: {
+      type: String,
     },
     mobile: {
       type: String,
-      required: true,  
+      required: true,
     },
     email: {
       type: String,
       unique: true,
-      required: true,  
+      required: true,
     },
     address: {
       type: String,
     },
     zipcode: {
-      type: String, 
+      type: String,
     },
     city: {
       type: String,
@@ -32,7 +35,7 @@ const UserSchema = mongoose.Schema(
     },
     password: {
       type: String,
-      required: true, 
+      required: true,
     },
     role: {
       type: String,
@@ -41,16 +44,19 @@ const UserSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["activate", "deactivate", "block"],
-      default: "activate",
+      enum: ["active", "inactive", "block"],
+      default: "active",
     },
     wallet: {
       type: Number,
       default: 0,
     },
+    otp: {
+      type: Number
+    }
   },
   {
-    timestamps: true,  
+    timestamps: true,
   }
 );
 

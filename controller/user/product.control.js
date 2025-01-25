@@ -6,7 +6,6 @@ const Stock = require("../../models/stock.model");
 const Review = require("../../models/review.model");
 const Description = require("../../models/description.model");
 const UserRating = require("../../models/userratings.model");
-const Relateditems = require("../../models/related_items.model");
 const { getFileUrl } = require("../../utils/cloudinaryConfig");
 const Category = require("../../models/category.model");
 const { status } = require("http-status");
@@ -128,16 +127,19 @@ exports.allProduct = async (req, res) => {
             //     }
             // }
         ]);
-
         if (!products.length) {
             return res.status(status.NOT_FOUND).json({
                 message: "No products found",
                 status: 404
             });
         }
+        const updatedProducts = products.map(prod => {
+            const imagesWithUrl = prod.image && Array.isArray(prod.image) ? prod.image.map(img => getFileUrl(img)) : [];
+            return { ...prod, image: imagesWithUrl };
+        });
         return res.status(status.OK).json({
             message: "All products retrieved successfully",
-            data: products
+            data: updatedProducts
         });
     } catch (err) {
         return res.status(status.INTERNAL_SERVER_ERROR).json({
@@ -146,25 +148,22 @@ exports.allProduct = async (req, res) => {
     }
 };
 
-
 exports.singleProduct = async (req, res) => {
     try {
         const id = req.params.id;
         const card = await Card.findById(id);
         if (!card) {
-
             return res.status(status.NOT_FOUND).json({
                 message: "Card not found"
             });
         }
-
         const product = await Product.findOne({ cardId: card._id }).populate('category').lean();
         if (!product) {
-
             return res.status(status.NOT_FOUND).json({
                 message: "Product not found"
             });
         }
+        product.image = product.image.map(img => getFileUrl(img));
         const size = await Size.find({ ProductId: product._id });
         const color = await Color.find({ ProductId: product._id });
         const review = await Review.findOne({ ProductId: product._id });
@@ -172,10 +171,6 @@ exports.singleProduct = async (req, res) => {
         const description = await Description.find({ productId: product._id });
         const stock = await Stock.findOne({ ProductId: product._id });
         const rating = await UserRating.find({ productId: product._id });
-        const items = await Relateditems.find({ productId: product._id });
-        items.map((item) => {
-            item.image = getFileUrl(item.image);
-        });
         const SizeData = size.map((item) => item.size);
         const ColorData = color.map((item) => item.code);
         const CategoryData = category ? category : null;
@@ -183,11 +178,18 @@ exports.singleProduct = async (req, res) => {
             details: item.details,
             images: item.desc_image
         }));
+        DescriptionData.map((item) => {
+            item.images = item.images.map(img => getFileUrl(img));
+        });
         const RatingData = rating.map(item => ({
             username: item.username,
             rating: item.rating,
             review: item.review
         }));
+        // const updatedProducts = product.map(prod => {
+        //     const imagesWithUrl = prod.image && Array.isArray(prod.image) ? prod.image.map(img => getFileUrl(img)) : [];
+        //     return { ...prod, image: imagesWithUrl };
+        // });
         return res.status(status.OK).json({
             message: "Product found",
             data: {
@@ -199,7 +201,6 @@ exports.singleProduct = async (req, res) => {
                 stock: stock ? stock.stock : null,
                 DescriptionData,
                 RatingData,
-                items
             }
         });
     }
@@ -216,6 +217,35 @@ exports.listcategory = async (req, res) => {
         return res.status(status.OK).json({
             message: "Category found",
             data: category
+        });
+    }
+    catch (err) {
+        return res.status(status.INTERNAL_SERVER_ERROR).json({
+            message: err.message
+        });
+    }
+};
+
+exports.similar = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(status.NOT_FOUND).json({
+                message: "Product not found"
+            });
+        }
+        const category = product.category;
+        const similar = await Product.find({ category: category, _id: { $ne: id } }).limit(5).lean();
+        if (!similar.length) {
+            return res.status(status.NOT_FOUND).json({
+                message: "No similar products found"
+            });
+        }
+        const card = await Card.find({ _id: similar.map(item => item.cardId) });
+        return res.status(status.OK).json({
+            message: "Similar products found",
+            data: card
         });
     }
     catch (err) {

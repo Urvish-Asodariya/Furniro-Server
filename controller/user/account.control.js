@@ -24,7 +24,7 @@ exports.profile = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const { email, name, mobile, address, zipcode, city, state, country } = req.body;
+        const { email, firstname, lastname, mobile, address, zipcode, city, state, country } = req.body;
         if (!validator.isEmail(email)) {
             return res.status(status.BAD_REQUEST).json({ message: "Invalid email format" });
         }
@@ -35,7 +35,7 @@ exports.update = async (req, res) => {
                 message: "User not found"
             });
         } else {
-            const updatedUser = await User.findByIdAndUpdate(user._id, { name, mobile, address, zipcode, city, state, country }, { new: true, runValidators: true });
+            const updatedUser = await User.findByIdAndUpdate(user._id, { firstname, lastname, mobile, address, zipcode, city, state, country }, { new: true, runValidators: true });
             return res.status(status.OK).json({
                 message: "User updated successfully"
             });
@@ -81,7 +81,6 @@ exports.changepassword = async (req, res) => {
         });
     }
 };
-
 
 exports.addWallet = async (req, res) => {
     try {

@@ -26,7 +26,6 @@ const order = require("./router/user/order.route");
 const userreview = require("./router/user/userrating.route");
 const billing = require("./router/user/billing.route");
 const contact = require("./router/user/contact.route");
-const related_items = require("./router/user/related_items.route");
 const account = require("./router/user/account.route");
 const wishlist = require("./router/user/wishlist.route");
 const notification = require("./router/user/notifications.route");
@@ -41,7 +40,6 @@ app.use("/user/order", order);
 app.use("/user/userreview", userreview);
 app.use("/user/billing", billing);
 app.use("/user/contact", contact);
-app.use("/user/items", related_items);
 app.use("/user/account", account);
 app.use("/user/wishlist", wishlist);
 app.use("/user/notification", notification);
@@ -57,7 +55,6 @@ const products = require("./router/admin/product.route");
 const users = require("./router/admin/user.route");
 const category = require("./router/admin/category.route");
 const coupan = require("./router/admin/coupan.route");
-const Relateditems = require("./router/admin/related_items.route");
 
 //admin
 app.use("/admin", Admin);
@@ -68,7 +65,6 @@ app.use("/admin/product", products);
 app.use("/admin/users", users);
 app.use("/admin/category", category);
 app.use("/admin/coupan", coupan);
-app.use("/admin/relateditems",Relateditems);
 
 
 app.listen(port, (err) => {

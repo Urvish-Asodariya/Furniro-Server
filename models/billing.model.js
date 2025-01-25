@@ -67,7 +67,13 @@ const BillingSchema = mongoose.Schema({
         ref: "User",
         required: true,
     },
-    discountApplied: { type: Boolean, default: false },
-});
+    discountApplied: {
+        type: Boolean,
+        default: false
+    },
+},
+    {
+        timestamps: true
+    });
 
 module.exports = mongoose.model("Billing", BillingSchema);

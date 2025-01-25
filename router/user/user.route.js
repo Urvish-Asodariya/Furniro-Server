@@ -8,7 +8,7 @@ router.post("/register", Usercontrol.register);
 router.post("/login", Usercontrol.login);
 router.get("/forgetPass", auth, validateUser, Usercontrol.ForgetPass);
 router.post("/resetpass", Usercontrol.resetPass);
-router.patch("/reset/:email", validateUser, Usercontrol.newpass);
+router.put("/reset", auth, Usercontrol.newpass);
 router.post("/logout", Usercontrol.logout);
 
 module.exports = router;

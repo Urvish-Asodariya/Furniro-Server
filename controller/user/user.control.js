@@ -5,10 +5,11 @@ const nodemailer = require("nodemailer");
 const NotificationController = require("./notification.control");
 const { status } = require("http-status");
 const validator = require("validator");
+var randomstring = require("randomstring");
 
 exports.register = async (req, res) => {
     try {
-        const { name, mobile, email, address, zipcode, city, state, country, password } = req.body;
+        const { firstname, lastname, mobile, email, address, zipcode, city, state, country, password } = req.body;
         if (!validator.isEmail(email)) {
             return res.status(status.BAD_REQUEST).json({
                 message: "Invalid email format"
@@ -16,12 +17,12 @@ exports.register = async (req, res) => {
         }
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(status.BAD_REQUEST).json({
+            return res.status(status.CONFLICT).json({
                 message: "Email already in use"
             });
         }
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ name, mobile: mobile.toString(), email, address, zipcode: zipcode.toString(), city, state, country, password: hashedPassword });
+        const user = new User({ firstname, lastname, mobile, email, address, zipcode, city, state, country, password: hashedPassword });
         await user.save();
         return res.status(status.OK).json({
             message: "User created successfully"
@@ -70,7 +71,8 @@ exports.login = async (req, res) => {
                 res.cookie("TOKEN", token, option);
                 return res.status(status.OK).json({
                     message: "User logged in successfully",
-                    token: token
+                    token: token,
+                    role: user.role
                 });
             }
         }
@@ -81,7 +83,6 @@ exports.login = async (req, res) => {
         });
     }
 };
-
 
 exports.ForgetPass = async (req, res) => {
     try {
@@ -112,8 +113,6 @@ exports.ForgetPass = async (req, res) => {
     }
 };
 
-
-
 exports.resetPass = async (req, res) => {
     try {
         const email = req.body.email;
@@ -126,6 +125,11 @@ exports.resetPass = async (req, res) => {
                 message: "Invalid email"
             });
         } else {
+            const otp = randomstring.generate({
+                length: 6,
+                charset: 'numeric'
+            });
+            await User.findOneAndUpdate({ email }, { otp: otp }, { new: true, runvalidators: true });
             let transporter = nodemailer.createTransport({
                 service: "gmail",
                 auth: {
@@ -133,24 +137,29 @@ exports.resetPass = async (req, res) => {
                     pass: process.env.PASSWORD
                 },
             });
+
             let mailOptions = {
                 from: process.env.EMAIL,
                 to: email,
                 subject: "🔒 Reset Your Password - Quick & Easy!",
-                text: `Hello,
-                    We received a request to reset your password. Don't worry, we've got you covered! Click the link below to set up a new password:
-                🔗 Reset Your Password: ${process.env.BASE_URL}/user/reset/${email}
+                html: `<h3><pre>Hello,
+                     We received a request to reset your password. Don't worry, we've got you covered! Click the link below to set up a new password:
+                🔗 Reset Your Password: ${process.env.BASE_URL}/user/reset;<br>
+                <h1> ${otp} </h1>
                     If you didn't request a password reset, please ignore this email or contact us if you have any concerns.
                 Best regards,
-                The Support Team`
+                The Support Team
+                </pre></h3>`,
             };
             await transporter.sendMail(mailOptions);
             return res.status(status.OK).json({
-                message: "Email sent successfully"
+                message: "Email sent successfully",
+                otp: otp
             });
         }
     }
     catch (err) {
+        console.log(err);
         return res.status(status.INTERNAL_SERVER_ERROR).json({
             message: err.message
         });
@@ -159,28 +168,38 @@ exports.resetPass = async (req, res) => {
 
 exports.newpass = async (req, res) => {
     try {
-        const email = req.params.email;
-        const { newpassword, confirmpassword } = req.body;
-        if (!validator.isEmail(email)) {
-            return res.status(status.BAD_REQUEST).json({ message: "Invalid email format" });
-        }
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(status.UNAUTHORIZED).json({
-                message: "Invalid email",
+        const id = req.user._id
+        const { newpassword, confirmpassword, otp } = req.body;
+        console.log(newpassword);
+        const users = await User.findById(id);
+        if (!users) {
+            return res.status(status.NOT_FOUND).json({
+                message: "User not found"
             });
         } else {
-            if (newpassword !== confirmpassword) {
+            if (users.otp != otp) {
                 return res.status(status.UNAUTHORIZED).json({
-                    message: "Passwords do not match"
+                    message: "Invalid OTP"
                 });
             } else {
-                const hashedPassword = await bcrypt.hash(newpassword, 10);
-                user.password = hashedPassword;
-                await user.save();
-                return res.status(status.OK).json({
-                    message: "Password changed successfully"
-                });
+                if (await bcrypt.compare(newpassword, users.password)) {
+                    console.log(newpassword, users.password);
+                    return res.status(status.BAD_REQUEST).json({
+                        message: "Password already exists"
+                    });
+                }
+                if (newpassword !== confirmpassword) {
+                    return res.status(status.UNAUTHORIZED).json({
+                        message: "Passwords do not match"
+                    });
+                } else {
+                    const hashedPassword = await bcrypt.hash(newpassword, 10);
+                    users.password = hashedPassword;
+                    await users.save();
+                    return res.status(status.OK).json({
+                        message: "Password changed successfully"
+                    });
+                }
             }
         }
     }

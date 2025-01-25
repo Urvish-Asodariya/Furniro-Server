@@ -49,7 +49,6 @@ exports.applydiscount = async (req, res) => {
                 message: "Failed to update billing"
             });
         }
-
         return res.status(status.OK).json({
             message: "Coupan applied successfully",
             data: updatedData
