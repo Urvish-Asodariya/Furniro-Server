@@ -16,7 +16,7 @@ A backend server application for managing an e-commerce platform. This applicati
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Urvish-Asodariya/furniro_server.git
+   git clone https://github.com/Urvish-Asodariya/Furniro-Server.git
    ```
 2. Navigate to the project directory:
    ```bash
