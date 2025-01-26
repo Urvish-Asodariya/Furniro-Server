@@ -11,19 +11,12 @@ A backend server application for managing an e-commerce platform. This applicati
 
 ---
 
-## Getting Started
 
-### Prerequisites
-- Node.js (>=16.0.0)
-- MongoDB database
-- Cloudinary account for media storage (optional)
-
----
 
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/furniro_server.git
+   git clone https://github.com/Urvish-Asodariya/furniro_server.git
    ```
 2. Navigate to the project directory:
    ```bash
@@ -37,17 +30,13 @@ A backend server application for managing an e-commerce platform. This applicati
 ---
 
 ### Configuration
-1. Create a `.env` file in the root directory and provide the following variables:
+ Create a `.env` file in the root directory and provide the following variables:
    ```env
    PORT=8080
    MONGO_URI=mongodb://localhost:27017/furniro
    CLOUDINARY_URL=your_cloudinary_url
    JWT_SECRET=your_jwt_secret
    ```
-
-2. Update `package.json` with the necessary scripts, if not already included.
-
----
 
 ### Usage
 
@@ -81,14 +70,4 @@ furniro_server/
 ├── package.json          # Project configuration
 ├── .env                  # Environment variables
 └── .gitignore            # Ignored files
-```
 
----
-
-## Contributing
-Contributions are welcome! Please open an issue or submit a pull request with your suggestions.
-
----
-
-## License
-This project is licensed under the MIT License.
